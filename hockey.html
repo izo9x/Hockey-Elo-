@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Air Hockey: Music & Style Fix</title>
+    <style>
+        :root { --primary-color: #ff5500; --bg-black: #0b0b0b; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg-black); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
+        
+        #bg-container { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+        #bg-radial { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #0b0b0b 100%); }
+        
+        #ui-layer { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(8px); background: rgba(0,0,0,0.5); }
+        .menu-card { background: rgba(30, 30, 30, 0.9); padding: 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); text-align: center; min-width: 300px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+        
+        h1 { font-size: 2.5rem; font-style: italic; margin: 0; font-weight: 900; letter-spacing: -1px; }
+        .subtitle { color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; font-weight: bold; font-size: 0.8rem; }
+        
+        button { background: var(--primary-color); color: white; border: none; padding: 12px 30px; font-size: 1rem; font-weight: 800; border-radius: 6px; cursor: pointer; text-transform: uppercase; margin: 5px; transition: 0.2s; width: 100%; }
+        button:active { transform: scale(0.95); }
+        button.sec { background: #333; }
+
+        .setting-block { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px solid rgba(255,255,255,0.05); }
+        .setting-label { display: block; margin-bottom: 10px; font-size: 0.7rem; font-weight: 900; color: #888; text-transform: uppercase; text-align: left; }
+        
+        /* Исправленный ползунок */
+        input[type=range] { width: 100%; accent-color: var(--primary-color); cursor: pointer; outline: none; }
+
+        .color-dot { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; display: inline-block; margin: 0 5px; transition: 0.2s; }
+        .color-dot.active { border-color: white; transform: scale(1.1); }
+
+        #goal-notification { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 4rem; font-weight: 900; font-style: italic; text-transform: uppercase; z-index: 100; pointer-events: none; white-space: nowrap; text-shadow: 0 0 20px currentcolor; }
+        #btn-pause-ingame { position: absolute; top: 20px; right: 20px; width: 45px; height: 45px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 1.2rem; cursor: pointer; z-index: 2000; display: flex; align-items: center; justify-content: center; }
+
+        .level-badge { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 900; border: 6px solid; margin: 0 auto 15px; background: #000; }
+        .hidden { display: none !important; }
+        #score-board { position: absolute; top: 20px; width: 100%; display: flex; justify-content: center; gap: 60px; font-size: 2.5rem; font-weight: 900; opacity: 0.2; pointer-events: none; z-index: 10; }
+        canvas#gameCanvas { display: block; position: absolute; inset: 0; z-index: 50; }
+    </style>
+</head>
+<body>
+
+    <div id="bg-container"><div id="bg-radial"></div></div>
+    <audio id="game-music" loop></audio>
+
+    <button id="btn-pause-ingame" class="hidden">II</button>
+    <div id="goal-notification" class="hidden"></div>
+
+    <div id="ui-layer">
+        <div id="main-menu" class="menu-card">
+            <h1>AIR HOCKEY</h1>
+            <div class="subtitle">FACEIT PRO LEAGUE</div>
+            <button id="btn-start">В БОЙ</button>
+            <button id="btn-stats" class="sec">ПРОФИЛЬ</button>
+            <button id="btn-settings" class="sec">НАСТРОЙКИ</button>
+        </div>
+
+        <div id="pause-menu" class="menu-card hidden">
+            <h1>ПАУЗА</h1>
+            <button id="btn-resume">ПРОДОЛЖИТЬ</button>
+            <button id="btn-quit" class="sec">В МЕНЮ</button>
+        </div>
+
+        <div id="settings-menu" class="menu-card hidden">
+            <h2 style="margin:0 0 15px 0">ОПЦИИ</h2>
+            <div class="setting-block">
+                <span class="setting-label">Загрузить музыку</span>
+                <input type="file" id="music-upload" accept="audio/*">
+                <span class="setting-label" style="margin-top:10px">Громкость</span>
+                <input type="range" id="volume-control" min="0" max="1" step="0.1" value="0.5">
+            </div>
+            <div class="setting-block">
+                <span class="setting-label">Цвет интерфейса</span>
+                <div id="color-picker">
+                    <div class="color-dot" style="background: #ff5500;" data-color="#ff5500"></div>
+                    <div class="color-dot" style="background: #00ff88;" data-color="#00ff88"></div>
+                    <div class="color-dot" style="background: #00ccff;" data-color="#00ccff"></div>
+                    <div class="color-dot" style="background: #a349ff;" data-color="#a349ff"></div>
+                </div>
+            </div>
+            <button id="btn-settings-back">СОХРАНИТЬ</button>
+        </div>
+
+        <div id="stats-menu" class="menu-card hidden">
+            <div class="level-badge">1</div>
+            <h2 id="elo-display">1000 ELO</h2>
+            <button id="btn-back" class="sec">НАЗАД</button>
+        </div>
+
+        <div id="game-over-menu" class="menu-card hidden">
+            <h1 id="res-text">ФИНАЛ</h1>
+            <div class="level-badge">?</div>
+            <h2 id="end-elo">1000 ELO</h2>
+            <button onclick="location.reload()">В МЕНЮ</button>
+        </div>
+    </div>
+
+    <div id="score-board" class="hidden">
+        <span id="score-player">0</span>
+        <span id="score-ai">0</span>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const music = document.getElementById('game-music');
+        const musicUpload = document.getElementById('music-upload');
+        const volCtrl = document.getElementById('volume-control');
+
+        let elo = parseInt(localStorage.getItem('airHockeyElo')) || 1000;
+        let themeColor = localStorage.getItem('airHockeyTheme') || '#ff5500';
+        
+        function applyTheme(color) {
+            themeColor = color;
+            document.documentElement.style.setProperty('--primary-color', color);
+            localStorage.setItem('airHockeyTheme', color);
+        }
+        applyTheme(themeColor);
+
+        let gameState = 'menu';
+        let canAiMove = false;
+        let aiWaitPos = { x: 0, y: 0 };
+
+        // Загрузка музыки
+        musicUpload.onchange = (e) => {
+            const file = e.target.files[0];
+            if(file) { 
+                music.src = URL.createObjectURL(file); 
+                music.load();
+            }
+        };
+
+        // Громкость
+        volCtrl.oninput = (e) => {
+            music.volume = e.target.value;
+        };
+
+        const levels = [
+            { min: 0, max: 500, lvl: 1, col: '#808080' },
+            { min: 501, max: 750, lvl: 2, col: '#46c37b' },
+            { min: 751, max: 1050, lvl: 4, col: '#ffcc00' },
+            { min: 1051, max: 9999, lvl: 10, col: '#ff0000' }
+        ];
+
+        function syncUI(menuId, val) {
+            const d = levels.find(l => val >= l.min && val <= l.max) || levels[0];
+            const b = document.querySelector(`#${menuId} .level-badge`);
+            if(b) { b.innerText = d.lvl; b.style.borderColor = d.col; b.style.color = d.col; }
+            if(menuId === 'stats-menu') document.getElementById('elo-display').innerText = val + " ELO";
+            else document.getElementById('end-elo').innerText = val + " ELO";
+        }
+
+        let puck = { x: 0, y: 0, vx: 0, vy: 0, radius: 18 };
+        let player = { x: 0, y: 0, radius: 36, score: 0 };
+        let ai = { x: 0, y: 0, radius: 36, score: 0 };
+
+        function reset() {
+            puck.x = canvas.width / 2; puck.y = canvas.height / 2;
+            puck.vx = 0; puck.vy = 0;
+            player.x = 120; player.y = canvas.height / 2;
+            ai.x = canvas.width - 80; ai.y = canvas.height / 2;
+            aiWaitPos = { x: ai.x, y: ai.y };
+            canAiMove = false;
+            setTimeout(() => { canAiMove = true; }, 1500);
+        }
+
+        function update() {
+            if(gameState !== 'playing') return;
+            puck.x += puck.vx; puck.y += puck.vy;
+            puck.vx *= 0.985; puck.vy *= 0.985;
+            
+            if(puck.y < 18 || puck.y > canvas.height - 18) { puck.vy *= -1; puck.y = puck.y < 18 ? 18 : canvas.height-18; }
+            
+            if(puck.x < 0) {
+                if(Math.abs(puck.y - canvas.height/2) < 90) { ai.score++; scored("LOSE", "#ff4444"); checkEnd(); }
+                else { puck.vx *= -1; puck.x = 18; }
+            }
+            if(puck.x > canvas.width) {
+                if(Math.abs(puck.y - canvas.height/2) < 90) { player.score++; scored("WIN", "#00ff88"); checkEnd(); }
+                else { puck.vx *= -1; puck.x = canvas.width - 18; }
+            }
+
+            if (canAiMove) {
+                let tx, ty;
+                let isPuckOnPlayerSide = (puck.x < canvas.width * 0.52);
+
+                if (isPuckOnPlayerSide) {
+                    tx = aiWaitPos.x; ty = aiWaitPos.y;
+                } else {
+                    let inCorner = (puck.x > canvas.width - 150 && (puck.y < 150 || puck.y > canvas.height - 150));
+                    if (inCorner) {
+                        tx = canvas.width - 120; ty = canvas.height / 2;
+                    } else {
+                        tx = puck.x + 30; ty = puck.y;
+                    }
+                }
+                ai.x += (tx - ai.x) * 0.045;
+                ai.y += (ty - ai.y) * 0.045;
+            }
+            ai.x = Math.max(canvas.width / 2 + ai.radius + 15, Math.min(canvas.width - ai.radius, ai.x));
+
+            [player, ai].forEach(o => {
+                let d = Math.hypot(puck.x-o.x, puck.y-o.y);
+                if(d < o.radius+puck.radius) {
+                    let a = Math.atan2(puck.y-o.y, puck.x-o.x);
+                    puck.vx = Math.cos(a)*15; puck.vy = Math.sin(a)*15;
+                    puck.x = o.x + Math.cos(a)*(o.radius+puck.radius+1);
+                    if(o === ai) { aiWaitPos = { x: ai.x, y: ai.y }; }
+                }
+            });
+        }
+
+        function scored(msg, color) {
+            gameState = 'goal';
+            const el = document.getElementById('goal-notification');
+            el.innerText = msg; el.style.color = color; el.classList.remove('hidden');
+            setTimeout(() => { el.classList.add('hidden'); reset(); gameState = 'playing'; loop(); }, 1200);
+        }
+
+        function checkEnd() {
+            if(player.score >= 5 || ai.score >= 5) {
+                gameState = 'gameover';
+                document.getElementById('ui-layer').classList.remove('hidden');
+                document.getElementById('game-over-menu').classList.remove('hidden');
+                let win = player.score >= 5;
+                elo = win ? elo + 25 : Math.max(0, elo - 25);
+                localStorage.setItem('airHockeyElo', elo);
+                document.getElementById('res-text').innerText = win ? "ПОБЕДА!" : "ПОРАЖЕНИЕ";
+                document.getElementById('res-text').style.color = win ? "#00ff88" : "#ff4444";
+                syncUI('game-over-menu', elo);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0,0,canvas.width, canvas.height);
+            ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(canvas.width/2, 0); ctx.lineTo(canvas.width/2, canvas.height); ctx.stroke();
+            ctx.strokeStyle = themeColor; ctx.lineWidth = 6;
+            ctx.strokeRect(0, canvas.height/2-90, 5, 180); 
+            ctx.strokeRect(canvas.width-5, canvas.height/2-90, 5, 180);
+            ctx.fillStyle = themeColor; ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, 7); ctx.fill();
+            ctx.fillStyle = "#eee"; ctx.beginPath(); ctx.arc(ai.x, ai.y, ai.radius, 0, 7); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(puck.x, puck.y, puck.radius, 0, 7); ctx.fill();
+            document.getElementById('score-player').innerText = player.score;
+            document.getElementById('score-ai').innerText = ai.score;
+        }
+
+        function loop() { if(gameState === 'playing') { update(); draw(); requestAnimationFrame(loop); } else { draw(); } }
+
+        const move = e => {
+            if(gameState !== 'playing') return;
+            let t = e.touches ? e.touches[0] : e;
+            player.x = Math.min(t.clientX, canvas.width/2 - player.radius);
+            player.y = Math.max(player.radius, Math.min(t.clientY, canvas.height - player.radius));
+            if(e.cancelable) e.preventDefault();
+        };
+        canvas.addEventListener('mousemove', move);
+        canvas.addEventListener('touchmove', move, {passive: false});
+
+        document.getElementById('btn-start').onclick = () => { 
+            gameState = 'playing'; 
+            document.getElementById('ui-layer').classList.add('hidden'); 
+            document.getElementById('score-board').classList.remove('hidden');
+            document.getElementById('btn-pause-ingame').classList.remove('hidden');
+            
+            // Запуск музыки при нажатии кнопки
+            if (music.src) {
+                music.play().catch(err => console.log("Музыка не запустилась:", err));
+            }
+
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            player.score = 0; ai.score = 0; reset(); loop(); 
+        };
+
+        document.getElementById('btn-stats').onclick = () => { document.getElementById('main-menu').classList.add('hidden'); document.getElementById('stats-menu').classList.remove('hidden'); syncUI('stats-menu', elo); };
+        document.getElementById('btn-settings').onclick = () => { document.getElementById('main-menu').classList.add('hidden'); document.getElementById('settings-menu').classList.remove('hidden'); };
+        document.getElementById('btn-back').onclick = () => { document.getElementById('stats-menu').classList.add('hidden'); document.getElementById('main-menu').classList.remove('hidden'); };
+        document.getElementById('btn-settings-back').onclick = () => { document.getElementById('settings-menu').classList.add('hidden'); document.getElementById('main-menu').classList.remove('hidden'); };
+        
+        document.getElementById('btn-pause-ingame').onclick = () => { 
+            gameState = 'paused'; 
+            music.pause();
+            document.getElementById('ui-layer').classList.remove('hidden'); 
+            document.getElementById('main-menu').classList.add('hidden'); 
+            document.getElementById('pause-menu').classList.remove('hidden'); 
+        };
+        
+        document.getElementById('btn-resume').onclick = () => { 
+            gameState = 'playing'; 
+            if (music.src) music.play();
+            document.getElementById('ui-layer').classList.add('hidden'); 
+            document.getElementById('pause-menu').classList.add('hidden'); 
+            loop(); 
+        };
+
+        document.querySelectorAll('.color-dot').forEach(dot => {
+            dot.onclick = () => {
+                applyTheme(dot.dataset.color);
+                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+            }
+        });
+
+        window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; reset(); };
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    </script>
+</body>
+</html>
